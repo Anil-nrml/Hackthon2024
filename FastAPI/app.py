@@ -101,4 +101,3 @@ def RemoveSkills(SkillName : str):
     RemoveSkill.RemoveSkillDetails(db_params,SkillName)
     return "Skill Removed Successfully"
 #return JSONResponse(content={"message": "Here's your interdimensional portal." , "mes1":"data2"})
-#https://vaibhav84-resumeapi.hf.space/docs
