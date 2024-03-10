@@ -154,7 +154,42 @@ class TestSkillExtractorDetails(unittest.TestCase):
         mock_skill_Validate.assert_has_calls(expected_calls, any_order=True)
 
 
-    
+    @patch('SkillExtract.psycopg2.connect')
+    @patch('SkillExtract.pd.read_sql_query')
+    def test_skill_check(self, mock_read_sql_query, mock_connect):
+        # Arrange
+        mock_conn = mock_connect.return_value
+
+        mock_db_params = {'database': 'your_db', 'user': 'your_user', 'password': 'your_password'}
+        mock_db_query = "SELECT skillname FROM FakeTableOrMockTable"
+
+        mock_df_data = {'skillname': ['Python', 'Java', 'SQL']}
+        mock_df = pd.DataFrame(mock_df_data)
+
+        mock_read_sql_query.return_value = mock_df
+
+        # Act
+        result = SkillExtractorDetails.skill_check(mock_db_query, mock_db_params)
+
+        # Assert
+        expected_result = 'Python, Java, SQL'
+        self.assertEqual(result, expected_result)
+
+
+    @patch('SkillExtract.SkillExtractorDetails.skill_check')
+    def test_display_skills(self, mock_skill_check):
+        # Arrange
+        mock_id = 1
+        mock_db_params = {'database': 'your_db', 'user': 'your_user', 'password': 'your_password'}
+
+        mock_skill_check.side_effect = ['Python, Java', 'Communication, Teamwork', 'Creativity', 'Problem Solving']
+
+        # Act
+        result = SkillExtractorDetails.display_skills(mock_id, mock_db_params)
+
+        # Assert
+        expected_result = 'Python, Java@Communication, Teamwork@Creativity Problem Solving'
+        self.assertEqual(result, expected_result)
 
 
 if __name__=='__main__':
