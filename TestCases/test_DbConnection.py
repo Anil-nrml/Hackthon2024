@@ -14,7 +14,7 @@ class TestDbConnection(unittest.TestCase):
     
     #@patch('FastAPI.DbConnection.DbConnection.GetDbConnection')
     #def test_GetSkillId_with_cursor_rowcount_1(self, mock_GetDbConnection):
-    def test_GetSkillId_with_cursor_rowcount_1(self):
+    def test_GetDbConnection(self):
         db_params = {
         'host': 'localhost',
         'database': 'BestResumeFitDB',
