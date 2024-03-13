@@ -2,7 +2,9 @@ import streamlit as st
 import psycopg2
 from psycopg2 import sql
 import pandas as pd
+import requests
 import re
+from WebAPI import WebAPIURL
 db_params = {
     'host': 'dpg-cnhir5fsc6pc73dvj380-a.oregon-postgres.render.com',
     'database': 'OpenAI',
@@ -12,9 +14,9 @@ db_params = {
 st.header("Profile - Job Description Match Results")
  
 def ShowResults():
-   dbQuery = "select * from profilematch"
-   conn = psycopg2.connect(**db_params)   
-   df = pd.read_sql_query(dbQuery, conn)
+   api_url = WebAPIURL.GetWebAPIURL('AllProfileMatchResults')
+   response = requests.get(api_url)
+   df =(response.json())
    st.dataframe(df,use_container_width = True, hide_index = True) 
 
 def extract_required_experience(job_description):
