@@ -3,59 +3,85 @@ import requests
 from io import StringIO 
 from PyPDF2 import PdfReader
 from WebAPI import WebAPIURL
+from AppConfiguration import Animation
+import pandas as pd
+import matplotlib.pyplot as plt
+
 st.set_page_config(
     page_title="Home",
     page_icon="🧊",
     layout="wide",
     initial_sidebar_state="expanded" 
+    #initial_sidebar_state="collapsed" 
 )
 
-with st.sidebar:
-    st.title("Best Resume Fit Matching Engine")
-    st.markdown('''
-    ## About
-    Goal is to match the input profile with Job Descriptions and rank them with best match score
-    ''')
-def submit (uploaded_resume):
-    text = ""
-    fName = ""
-    if uploaded_resume:
-        
-        fName = uploaded_resume.name
-        if fName.endswith("pdf"):
-            pdf_reader = PdfReader(uploaded_resume)
-            
-            for page in pdf_reader.pages:
-                text += page.extract_text()
-            #text = extract_text(filePath)
-       
-        elif fName.endswith("doc") or fName.endswith("docx"):
-            text = StringIO(uploaded_resume.getvalue().decode("utf-8"))
-            text = text.read()
-    
-        else:
-            text = uploaded_resume.getvalue().decode()
-         #Pdf Text Extraction
-        with st.spinner('Processing...'):    
-            inputs = {"text" : text, "filename" : fName}         
-            api_url = WebAPIURL.GetWebAPIURL('UploadJobDescriptionOpenText')
-            #test_url = "https://vaibhav84-resumeapi.hf.space/UploadJobDescriptionOpenText"
-            test_response = requests.get(api_url, inputs)
+st.markdown("""
+<style>
+    #header {
+        visibility: hidden;
+    }
+    .st-emotion-cache-z5fcl4{
+            padding: 1rem 5rem 0 5rem
+    }
+</style>
+""", unsafe_allow_html=True)
 
-            #st.write(test_response.json())
-            print(test_response.json())
-            st.success(test_response.json())    
-        #AppFlow(text,fName,query, True)
-     
-           
+data = {
+    "Technology": ["Artificial Intelligence", "Machine Learning", "Cloud Computing", "Cybersecurity", "Data Science"],
+    "Trend Score": [80, 90, 70, 85, 95]
+}
 
+df = pd.DataFrame(data)
 
-def main():
-    st.header("Best Resume Matching Engine")
+def login():
+    st.title("Resume Matcher")
+    col1, col2 = st.columns([5, 5])
 
-    form = st.form(key='some_form')
-    uploaded_resume = form.file_uploader("Upload Job Description" , type = ["txt","pdf"])
-    form.form_submit_button("Run", on_click=submit(uploaded_resume=uploaded_resume))
+    # Left column for Lottie animation
+    with col1:        
+        Animation.get_login_anime()
+
+    with col2:
+        with st.form("login_form"):
+            # Login form
+            st.title("Login")
+            username = st.text_input("Username", value="", key='username')
+            password = st.text_input("Password", type="password", value="", key='password')
+            submitted = st.form_submit_button("Submit")
+            if submitted:
+                if username == "admin" and password == "pwd":
+                    st.success("Logged in successfully!")
+                    st.session_state["current_page"] = "main"
+                    st.session_state["logged_in"] = True
+                    st.experimental_rerun()
+
+                else:
+                    st.error("Invalid username or password. Please try again.")
+            st.write("</div>", unsafe_allow_html=True)
+      
+def dashboard():
+    Animation.get_sidebar("dashboard")
+    st.title("Top Trending Technologies")
+    create_trend_chart()
+
+def create_trend_chart():
+    plt.figure(figsize=(10, 6))
+    plt.barh(df["Technology"], df["Trend Score"], color='skyblue')
+    plt.xlabel("Trend Score")
+    plt.ylabel("Technology")
+    #plt.title("Top Trending Technologies")
+    plt.gca().invert_yaxis()  # Invert y-axis to display highest score at top
+    plt.grid(axis='x', linestyle='--', alpha=0.6)
+    plt.tight_layout()
+    st.pyplot(plt)
 
 if __name__ == '__main__':
-    main()
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "login"
+
+    if st.session_state["current_page"] == "login":
+        login()
+    elif st.session_state["current_page"] =="main":
+        dashboard()
+    else:
+        dashboard()
