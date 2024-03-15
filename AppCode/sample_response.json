@@ -1,0 +1,30 @@
+{
+    "status": "success",
+    "count": 3,
+    "metadata": {
+      "confidenceScore": 0.8
+    },
+    "results":
+     [
+       {
+        "id": 1,
+        "score": 0.8,
+        "path": "sample_resume_1.pdf"	 
+       },
+       {
+        "id": 2,
+        "score": 0.79,
+        "path": "sample_resume_2.pdf"	 
+       },
+       {
+        "id": 3,
+        "score": 0.76,
+        "path": "sample_resume_3.pdf"	 
+       },
+       {
+        "id": 4,
+        "score": 0.75,
+        "path": "sample_resume_4.pdf"	 
+       }
+     ]
+   }
