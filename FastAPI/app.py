@@ -4,11 +4,10 @@ from pydantic import BaseModel
 import json
 
 #SkillExtraction Packages
-import psycopg2
-import pandas as pd
+
 import numpy as np
+from sentence_transformers import SentenceTransformer
 import spacy
-from sklearn.metrics.pairwise import cosine_similarity
 from spacy.matcher import PhraseMatcher
 from skillNer.general_params import SKILL_DB
 from skillNer.skill_extractor_class import SkillExtractor
@@ -19,85 +18,90 @@ warnings.filterwarnings('ignore')
 
 
 #Custom Classes for endpoints
-from DbConnection import DbConnection
-from UploadFile import UploadOpenFile
+
 from SkillExtract import SkillExtractorDetails
-from ExtractContentsFromFile import ExtractContentFromFile
-from RemoveSkills import RemoveSkill
+
+
+from SkillMatcher import SkillMatch
+from OpenAIResponse import OpenAIText
+from DataReader import GCSBlobReader
 import os
 os.environ['HF_HOME'] = '/hug/cache/'
 
 app = FastAPI()
-class FileDetails(BaseModel):
-    filecontents: str
-    filename: str
-    fileid: str
-    message: str
-
-
-class SkillDetails(BaseModel):
-    skillid: int 
-    requiredSkills: str
-    softSkills: str
-    goodToHaveSkills: str  
-
-class SkillData(BaseModel):
-    filename: str 
          
 nlp = spacy.load("en_core_web_lg")
     # init skill extractor
 skill_extractor = SkillExtractor(nlp, SKILL_DB, PhraseMatcher)
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 @app.get("/")
 async def root():
  return {"SkillAPI":"SkillAPi Version 0.05"}
 
-db_params = DbConnection.GetDbConnection()
 def parse_csv(df):
     res = df.to_json(orient="records")
     parsed = json.loads(res)
     return parsed
 
+@app.get("/GetMatchScore/")
+def GetMatchScore(inputText : str , matchCV : int, ScanFiles : int, WithOpenAI : bool) :   
+   returnSkills = SkillExtractorDetails.GetSkillData(skill_extractor,inputText)
+   exp = SkillExtractorDetails.extract_required_experience(inputText)
+   gcsReaderObj = GCSBlobReader()    
+   myDictCV = {} 
+   listOfContent = gcsReaderObj.read_all_files_from_gcs('hackathon1415',ScanFiles)
+   for count in range(ScanFiles):
+        if(WithOpenAI):        
+            airesponse = OpenAIText.OpenAITextResponse('Summarize data for skills in max 50 words',listOfContent[count]['content'])
+            returnSkillsCV = SkillExtractorDetails.GetSkillData(skill_extractor,airesponse) 
+        else:
+            airesponse = listOfContent[count]['content']     
+            returnSkillsCV = SkillExtractorDetails.GetSkillData(skill_extractor,airesponse) 
+         
+        myDictCV[listOfContent[count]['name']] = returnSkillsCV
 
-@app.post("/UploadJobDescription/")
-def uploadJobDescription(file: bytes =  File(...), FileName: str = "sample.pdf"):   
-    text= ExtractContentFromFile.ExtractDataFromFile(FileName,file)
-    returnID = UploadOpenFile.uploadFile(text,FileName,db_params)
-    returnSkills = SkillExtractorDetails.SkillExtract(db_params,skill_extractor,returnID)     
-    details = returnSkills.split('@')
-    data = {'Data':['Required Skills', 'Soft Skills', 'Good to have Skills'], 'Values':[details[0], details[1], details[2]]}
-    df = pd.DataFrame(data)
-    return parse_csv(df) 
-
-@app.get("/AllProfileMatchResults") 
-def AllProfileMatchResults():
-   dbQuery = "select * from profilematch"
-   conn = psycopg2.connect(**db_params)   
-   df = pd.read_sql_query(dbQuery, conn)
-   return parse_csv(df) 
-
-@app.post("/UploadOpenText/")
-def UploadOpenText(file_data: FileDetails):   
+   myDictJD = {} 
+   myDictJD["JD1"] = returnSkills
    
-   returnID = UploadOpenFile.uploadFile(file_data.filecontents,file_data.filename,db_params)
-   file_data.filecontents = ""
-   file_data.fileid = str(returnID)
-   file_data.message = "File Uploaded Successfully!"
    
-   return file_data
+   data = SkillMatch.SkillMatchResult(model,myDictJD,myDictCV)
+   print(airesponse)
+   #print(exp)
+   return data
+
+@app.get("/GetMatchScoreTest/")
+def GetMatchScoreTest(inputText : str , matchCV : int, ScanFiles : int, WithOpenAI : bool) :   
+   returnSkills = SkillExtractorDetails.GetSkillData(skill_extractor,inputText)
+   exp = SkillExtractorDetails.extract_required_experience(inputText)
+   gcsReaderObj = GCSBlobReader()    
+   myDictCV = {} 
+   listOfContent = gcsReaderObj.read_all_files_from_gcs('hackathon1415',ScanFiles)
+   for count in range(ScanFiles):
+        if(WithOpenAI):   
+            expCV = SkillExtractorDetails.extract_required_experience(listOfContent[count]['content'])   
+            print(listOfContent[count]['name']) 
+            print(expCV) 
+            if(exp  == expCV):
+               airesponse = OpenAIText.OpenAITextResponse('Summarize data for skills in max 50 words',listOfContent[count]['content'])
+               returnSkillsCV = SkillExtractorDetails.GetSkillData(skill_extractor,airesponse) 
+               myDictCV[listOfContent[count]['name']] = returnSkillsCV   
+                   
+   myDictJD = {} 
+   myDictJD["JD1"] = returnSkills
+   
+   
+   data = SkillMatch.SkillMatchResult(model,myDictJD,myDictCV)
+   print(airesponse)
+   #print(exp)
+   return data
 
 
-@app.post("/ExtractSkillsByJobID/")
-def ExtractSkillsByJobID(skill_data: SkillDetails):
-   returnSkills = SkillExtractorDetails.SkillExtract(db_params,skill_extractor,skill_data.skillid)     
-   details = returnSkills.split('@')
-   skill_data.requiredSkills = details[0]
-   skill_data.softSkills = details[1]
-   skill_data.goodToHaveSkills = details[1]
-   return skill_data
 
-@app.post("/RemoveSkillsByName/")
-def RemoveSkills(SkillName : str):    
-    RemoveSkill.RemoveSkillDetails(db_params,SkillName)
-    return "Skill Removed Successfully"
+@app.get("/GetOpenAPIResponse/")
+def GetOpenAPIResponse(query:str, content:str):
+    return OpenAIText.OpenAITextResponse(query,content)
+    
 #return JSONResponse(content={"message": "Here's your interdimensional portal." , "mes1":"data2"})
+
+#https://vaibhav84-hackerspaceapi.hf.space/docs
