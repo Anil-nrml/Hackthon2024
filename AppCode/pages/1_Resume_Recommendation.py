@@ -2,6 +2,8 @@ import streamlit as st
 import json
 from AppConfiguration import Animation
 import time
+from WebAPI import WebAPIURL
+import requests
 
 st.set_page_config(
     page_title="Resume",
@@ -22,15 +24,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def read_api_response():
+def read_api_response(api_response):
     
-    #Animation.get_loader()
-    #st.snow()
-    #with st.spinner(Animation.get_loader('resume_loader')):
-    with st.spinner('loading...'):
-        time.sleep(5)
-    file = open('sample_response.json')
-    json_data = json.load(file)
+    
+    # with st.spinner('loading...'):
+    #     time.sleep(5)
+    # file = open('sample_response.json')
+    #json_data = json.load(api_response)
+    json_data = api_response
 
     # To print the empty line
     st.write('---')
@@ -52,7 +53,7 @@ def main():
 
         # Add controls to the second column
         with col2:
-            category = st.text_input("Category", 'resume')
+            category = st.text_input("Category", 'Resume')
             no_of_matches = st.number_input("No. of Matches", min_value=1, value=3)
 
     
@@ -73,7 +74,13 @@ def main():
 
                 # Add api call
                 #st.json(data_to_post)
-                read_api_response()
+                
+                with st.spinner('Getting the best match...'):
+                    #api_url = 'https://vaibhav84-hackerspaceapi.hf.space/GetSearchResults/'
+                    api_url = WebAPIURL.GetWebAPIURL('GetSearchResults/')
+                    api_response = requests.post(api_url, json=data_to_post)
+                    #st.write(api_response.json())
+                    read_api_response(api_response.json())
    
  
 # main()
